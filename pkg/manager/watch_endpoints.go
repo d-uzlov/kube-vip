@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/kube-vip/kube-vip/pkg/kubevip"
 	log "github.com/sirupsen/logrus"
@@ -142,7 +143,7 @@ func (ep *endpointsProvider) getProtocol() string {
 	return ""
 }
 
-func (sm *Manager) watchEndpoint(ctx context.Context, id string, service *v1.Service, wg *sync.WaitGroup, provider epProvider) error {
+func (sm *Manager) watchEndpoint(ctx context.Context, id string, service *v1.Service, wg *sync.WaitGroup, provider epProvider, electionDelay time.Duration) error {
 	log.Infof("[%s] watching for service [%s] in namespace [%s]", provider.getLabel(), service.Name, service.Namespace)
 	// Use a restartable watcher, as this should help in the event of etcd or timeout issues
 	leaderContext, cancel := context.WithCancel(context.Background())
@@ -264,6 +265,9 @@ func (sm *Manager) watchEndpoint(ctx context.Context, id string, service *v1.Ser
 							// if the context isn't cancelled restart
 							if leaderContext.Err() != context.Canceled {
 								leaderElectionActive = true
+								if electionDelay != 0 {
+									time.Sleep(electionDelay)
+								}
 								err := sm.StartServicesLeaderElection(leaderContext, service, wg)
 								if err != nil {
 									log.Error(err)

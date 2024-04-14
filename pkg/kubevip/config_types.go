@@ -1,6 +1,8 @@
 package kubevip
 
 import (
+	"time"
+
 	"github.com/kube-vip/kube-vip/pkg/bgp"
 )
 
@@ -205,6 +207,8 @@ type KubernetesLeaderElection struct {
 
 	// LeaseAnnotations - annotations which will be given to the lease object
 	LeaseAnnotations map[string]string
+
+	ElectionDelay time.Duration
 }
 
 // Etcd defines all the settings for the etcd client.

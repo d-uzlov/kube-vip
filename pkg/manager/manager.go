@@ -1,13 +1,16 @@
 package manager
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/kube-vip/kube-vip/pkg/k8s"
 
@@ -17,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -136,6 +140,29 @@ func New(configMap string, config *kubevip.Config) (*Manager, error) {
 	// 		return nil, fmt.Errorf("could not create k8s clientset from incluster config: %v", err)
 	// 	}
 	// }
+
+	if config.EnableServicesElection {
+		if config.ElectionDelay == 0 {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			node, err := clientset.CoreV1().Nodes().Get(ctx, config.NodeName, metav1.GetOptions{})
+			if err != nil || node == nil {
+				log.Warnf("Can't get own node info for node name [%s]", config.NodeName)
+			} else {
+				delayAnnotationName := "kube-vip.io/ElectionDelayMs"
+				delayAnnotation, ok := node.Annotations[delayAnnotationName]
+				if ok && delayAnnotation != "" {
+					delay, err := strconv.Atoi(delayAnnotation)
+					if err != nil {
+						log.Errorf("Can't parse nodeAnnotations[%v] '%v'", delayAnnotationName, delayAnnotation)
+					} else {
+						config.ElectionDelay = time.Millisecond * time.Duration(delay)
+					}
+				}
+			}
+		}
+		log.Infof("Using election delay '%v'", config.ElectionDelay)
+	}
 
 	return &Manager{
 		clientSet: clientset,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/kube-vip/kube-vip/pkg/vip"
@@ -169,7 +170,7 @@ func (sm *Manager) servicesWatcher(ctx context.Context, serviceFunc func(context
 									} else {
 										provider = &endpointslicesProvider{label: "endpointslices"}
 									}
-									if err = sm.watchEndpoint(activeServiceLoadBalancer[string(svc.UID)], sm.config.NodeName, svc, &wg, provider); err != nil {
+									if err = sm.watchEndpoint(activeServiceLoadBalancer[string(svc.UID)], sm.config.NodeName, svc, &wg, provider, sm.config.ElectionDelay); err != nil {
 										log.Error(err)
 									}
 									wg.Done()
@@ -201,7 +202,8 @@ func (sm *Manager) servicesWatcher(ctx context.Context, serviceFunc func(context
 								} else {
 									provider = &endpointslicesProvider{label: "endpointslices"}
 								}
-								if err = sm.watchEndpoint(activeServiceLoadBalancer[string(svc.UID)], sm.config.NodeName, svc, &wg, provider); err != nil {
+								zeroElectionDelay := time.Duration(0)
+								if err = sm.watchEndpoint(activeServiceLoadBalancer[string(svc.UID)], sm.config.NodeName, svc, &wg, provider, zeroElectionDelay); err != nil {
 									log.Error(err)
 								}
 								wg.Done()
